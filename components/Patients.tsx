@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { Patient, Gender } from '../types';
-import { Plus, Search, Phone, MapPin, ChevronRight, X } from 'lucide-react';
+import { Plus, Search, Phone, MapPin, ChevronRight, X, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BLOOD_GROUPS } from '../constants';
 
@@ -9,6 +9,8 @@ const Patients: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
   // Form State
@@ -24,8 +26,20 @@ const Patients: React.FC = () => {
   });
 
   useEffect(() => {
-    setPatients(StorageService.getPatients());
+    fetchPatients();
   }, []);
+
+  const fetchPatients = async () => {
+    setLoading(true);
+    try {
+      const data = await StorageService.getPatients();
+      setPatients(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value.toLowerCase());
@@ -36,18 +50,14 @@ const Patients: React.FC = () => {
     p.mobile.includes(search)
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.mobile) return;
-
-    const newPatient: Patient = {
-      id: Date.now().toString(),
-      registeredDate: new Date().toISOString(),
-      ...formData as Patient
-    };
-
-    StorageService.savePatient(newPatient);
-    setPatients(StorageService.getPatients());
+    
+    setSubmitting(true);
+    await StorageService.savePatient(formData);
+    await fetchPatients(); // Refresh list
+    setSubmitting(false);
     setIsModalOpen(false);
     setFormData({ name: '', mobile: '', age: 0, gender: Gender.Male, address: '', bloodGroup: '', allergies: '', chronicConditions: '' });
   };
@@ -62,7 +72,9 @@ const Patients: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Patient Records</h2>
-          <p className="text-slate-500 text-sm">{patients.length} total patients</p>
+          <p className="text-slate-500 text-sm">
+             {loading ? 'Syncing...' : `${patients.length} total patients`}
+          </p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
@@ -90,7 +102,11 @@ const Patients: React.FC = () => {
 
         {/* List */}
         <div className="overflow-y-auto flex-1">
-          {filteredPatients.length === 0 ? (
+          {loading ? (
+             <div className="flex justify-center items-center h-48">
+               <Loader2 className="animate-spin text-teal-600" size={32} />
+             </div>
+          ) : filteredPatients.length === 0 ? (
              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                <UsersIcon className="w-16 h-16 mb-4 text-slate-200" />
                <p>No patients found.</p>
@@ -191,13 +207,17 @@ const Patients: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Chronic Conditions</label>
-                <textarea name="chronicConditions" rows={2} value={formData.chronicConditions} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g. Diabetes, Hypertension" />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Chronic Conditions / Medical History</label>
+                <textarea name="chronicConditions" rows={2} value={formData.chronicConditions} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g. Diabetes, previous surgeries, heart condition" />
+                <p className="text-xs text-slate-400 mt-1">Include any significant past medical history here.</p>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 shadow-sm">Register Patient</button>
+                <button type="submit" disabled={submitting} className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 shadow-sm flex items-center gap-2">
+                  {submitting && <Loader2 className="animate-spin" size={16} />}
+                  Register Patient
+                </button>
               </div>
             </form>
           </div>

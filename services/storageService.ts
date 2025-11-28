@@ -1,99 +1,196 @@
+import { supabase } from './supabaseClient';
 import { Patient, Visit, Appointment, AppointmentStatus } from '../types';
 
-const KEYS = {
-  PATIENTS: 'clinic_patients',
-  VISITS: 'clinic_visits',
-  APPOINTMENTS: 'clinic_appointments',
-};
+// Helper to map DB snake_case to app camelCase
+const mapPatientFromDB = (p: any): Patient => ({
+  id: p.id,
+  name: p.name,
+  mobile: p.mobile,
+  age: p.age,
+  gender: p.gender,
+  bloodGroup: p.blood_group,
+  address: p.address,
+  allergies: p.allergies,
+  chronicConditions: p.chronic_conditions,
+  registeredDate: p.created_at,
+});
 
-// Helper to simulate delay for realism if needed, but we'll keep it synchronous for UI responsiveness
-const getFromStorage = <T>(key: string): T[] => {
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : [];
-};
+const mapVisitFromDB = (v: any): Visit => ({
+  id: v.id,
+  patientId: v.patient_id,
+  date: v.date,
+  symptoms: v.symptoms,
+  diagnosis: v.diagnosis,
+  prescription: v.prescription || [],
+  notes: v.notes,
+  fees: Number(v.fees),
+});
 
-const saveToStorage = <T>(key: string, data: T[]) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
+const mapAppointmentFromDB = (a: any): Appointment => ({
+  id: a.id,
+  patientName: a.patient_name,
+  patientId: a.patient_id,
+  mobile: a.mobile,
+  date: a.date,
+  time: a.time,
+  status: a.status as AppointmentStatus,
+  type: a.type as 'Online' | 'Walk-in',
+  notes: a.notes,
+});
 
 export const StorageService = {
   // Patients
-  getPatients: (): Patient[] => getFromStorage<Patient>(KEYS.PATIENTS),
-  
-  savePatient: (patient: Patient) => {
-    const patients = getFromStorage<Patient>(KEYS.PATIENTS);
-    const index = patients.findIndex(p => p.id === patient.id);
-    if (index >= 0) {
-      patients[index] = patient;
-    } else {
-      patients.push(patient);
+  getPatients: async (): Promise<Patient[]> => {
+    const { data, error } = await supabase
+      .from('patients')
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching patients:', error);
+      return [];
     }
-    saveToStorage(KEYS.PATIENTS, patients);
+    return data.map(mapPatientFromDB);
+  },
+  
+  savePatient: async (patient: Partial<Patient>): Promise<Patient | null> => {
+    const dbPayload = {
+      name: patient.name,
+      mobile: patient.mobile,
+      age: patient.age,
+      gender: patient.gender,
+      blood_group: patient.bloodGroup,
+      address: patient.address,
+      allergies: patient.allergies,
+      chronic_conditions: patient.chronicConditions,
+    };
+
+    const { data, error } = await supabase
+      .from('patients')
+      .insert([dbPayload])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error saving patient:', error);
+      return null;
+    }
+    return mapPatientFromDB(data);
   },
 
-  deletePatient: (id: string) => {
-    const patients = getFromStorage<Patient>(KEYS.PATIENTS).filter(p => p.id !== id);
-    saveToStorage(KEYS.PATIENTS, patients);
-    // Also cleanup visits
-    const visits = getFromStorage<Visit>(KEYS.VISITS).filter(v => v.patientId !== id);
-    saveToStorage(KEYS.VISITS, visits);
+  updatePatient: async (id: string, patient: Partial<Patient>): Promise<boolean> => {
+     const dbPayload = {
+      name: patient.name,
+      mobile: patient.mobile,
+      age: patient.age,
+      gender: patient.gender,
+      blood_group: patient.bloodGroup,
+      address: patient.address,
+      allergies: patient.allergies,
+      chronic_conditions: patient.chronicConditions,
+    };
+    const { error } = await supabase.from('patients').update(dbPayload).eq('id', id);
+    return !error;
+  },
+
+  deletePatient: async (id: string) => {
+    // Delete visits first due to foreign key constraints usually, though Supabase might cascade if configured.
+    // We'll try deleting patient directly.
+    await supabase.from('visits').delete().eq('patient_id', id);
+    await supabase.from('patients').delete().eq('id', id);
   },
 
   // Visits
-  getVisits: (patientId?: string): Visit[] => {
-    const visits = getFromStorage<Visit>(KEYS.VISITS);
+  getVisits: async (patientId?: string): Promise<Visit[]> => {
+    let query = supabase.from('visits').select('*').order('date', { ascending: false });
+    
     if (patientId) {
-      return visits.filter(v => v.patientId === patientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      query = query.eq('patient_id', patientId);
     }
-    return visits;
+
+    const { data, error } = await query;
+    if (error) return [];
+    return data.map(mapVisitFromDB);
   },
 
-  addVisit: (visit: Visit) => {
-    const visits = getFromStorage<Visit>(KEYS.VISITS);
-    visits.push(visit);
-    saveToStorage(KEYS.VISITS, visits);
+  addVisit: async (visit: Partial<Visit>) => {
+    const dbPayload = {
+      patient_id: visit.patientId,
+      date: visit.date,
+      symptoms: visit.symptoms,
+      diagnosis: visit.diagnosis,
+      prescription: visit.prescription,
+      notes: visit.notes,
+      fees: visit.fees,
+    };
+
+    const { error } = await supabase.from('visits').insert([dbPayload]);
+    if (error) console.error('Error adding visit:', error);
   },
 
   // Appointments
-  getAppointments: (): Appointment[] => {
-    return getFromStorage<Appointment>(KEYS.APPOINTMENTS).sort((a, b) => {
-      // Sort by date then time
-      const dateA = new Date(`${a.date}T${a.time}`);
-      const dateB = new Date(`${b.date}T${b.time}`);
-      return dateA.getTime() - dateB.getTime();
-    });
+  getAppointments: async (): Promise<Appointment[]> => {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .order('date', { ascending: true })
+      .order('time', { ascending: true });
+    
+    if (error) return [];
+    return data.map(mapAppointmentFromDB);
   },
 
-  saveAppointment: (appointment: Appointment) => {
-    const appointments = getFromStorage<Appointment>(KEYS.APPOINTMENTS);
-    const index = appointments.findIndex(a => a.id === appointment.id);
-    if (index >= 0) {
-      appointments[index] = appointment;
+  saveAppointment: async (appointment: Partial<Appointment>) => {
+    const dbPayload = {
+      patient_name: appointment.patientName,
+      patient_id: appointment.patientId || null,
+      mobile: appointment.mobile,
+      date: appointment.date,
+      time: appointment.time,
+      status: appointment.status,
+      type: appointment.type,
+      notes: appointment.notes
+    };
+
+    if (appointment.id) {
+        // Update
+        const { error } = await supabase.from('appointments').update(dbPayload).eq('id', appointment.id);
+        if (error) console.error(error);
     } else {
-      appointments.push(appointment);
+        // Insert
+        const { error } = await supabase.from('appointments').insert([dbPayload]);
+        if (error) console.error(error);
     }
-    saveToStorage(KEYS.APPOINTMENTS, appointments);
   },
 
-  deleteAppointment: (id: string) => {
-    const appointments = getFromStorage<Appointment>(KEYS.APPOINTMENTS).filter(a => a.id !== id);
-    saveToStorage(KEYS.APPOINTMENTS, appointments);
+  updateAppointmentStatus: async (id: string, status: AppointmentStatus) => {
+    await supabase.from('appointments').update({ status }).eq('id', id);
+  },
+
+  deleteAppointment: async (id: string) => {
+    await supabase.from('appointments').delete().eq('id', id);
   },
 
   // Stats
-  getStats: () => {
-    const patients = getFromStorage<Patient>(KEYS.PATIENTS);
-    const visits = getFromStorage<Visit>(KEYS.VISITS);
-    const appointments = getFromStorage<Appointment>(KEYS.APPOINTMENTS);
+  getStats: async () => {
+    const { count: patientCount } = await supabase.from('patients').select('*', { count: 'exact', head: true });
+    const { count: visitCount } = await supabase.from('visits').select('*', { count: 'exact', head: true });
     
     const todayStr = new Date().toISOString().split('T')[0];
-    const todayAppointments = appointments.filter(a => a.date === todayStr && a.status !== AppointmentStatus.Cancelled).length;
-    const totalRevenue = visits.reduce((sum, v) => sum + (Number(v.fees) || 0), 0);
+    const { count: todayApptCount } = await supabase
+        .from('appointments')
+        .select('*', { count: 'exact', head: true })
+        .eq('date', todayStr)
+        .neq('status', AppointmentStatus.Cancelled);
+
+    // Calculate revenue (requires fetching all fees, might be heavy for large DBs, can optimize with SQL function later)
+    const { data: visits } = await supabase.from('visits').select('fees');
+    const totalRevenue = visits ? visits.reduce((sum, v) => sum + (Number(v.fees) || 0), 0) : 0;
 
     return {
-      totalPatients: patients.length,
-      totalVisits: visits.length,
-      todayAppointments,
+      totalPatients: patientCount || 0,
+      totalVisits: visitCount || 0,
+      todayAppointments: todayApptCount || 0,
       totalRevenue
     };
   }

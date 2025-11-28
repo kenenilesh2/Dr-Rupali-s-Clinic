@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { Appointment, AppointmentStatus } from '../types';
 import { DOCTOR_MOBILE, CLINIC_NAME } from '../constants';
-import { Calendar, Phone, Clock, CheckCircle, XCircle, ExternalLink, Share2 } from 'lucide-react';
+import { Calendar, Phone, Clock, CheckCircle, XCircle, Share2, Link as LinkIcon, Loader2 } from 'lucide-react';
 
 const Appointments: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [filter, setFilter] = useState<'All' | 'Today' | 'Pending'>('Today');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAppointments();
   }, [filter]);
 
-  const loadAppointments = () => {
-    const all = StorageService.getAppointments();
+  const loadAppointments = async () => {
+    setLoading(true);
+    const all = await StorageService.getAppointments();
     const todayStr = new Date().toISOString().split('T')[0];
     
     if (filter === 'Today') {
@@ -23,19 +25,23 @@ const Appointments: React.FC = () => {
     } else {
       setAppointments(all);
     }
+    setLoading(false);
   };
 
-  const updateStatus = (id: string, status: AppointmentStatus) => {
-    const appt = appointments.find(a => a.id === id);
-    if (appt) {
-      StorageService.saveAppointment({ ...appt, status });
-      loadAppointments(); // Refresh
-    }
+  const updateStatus = async (id: string, status: AppointmentStatus) => {
+    await StorageService.updateAppointmentStatus(id, status);
+    loadAppointments(); // Refresh
   };
 
   const getWhatsAppLink = () => {
     const text = `Hello Dr. Rupali, I would like to book an appointment at ${CLINIC_NAME}. Please let me know the available slots.`;
     return `https://wa.me/${DOCTOR_MOBILE}?text=${encodeURIComponent(text)}`;
+  };
+
+  const copyBookingLink = () => {
+    const link = `${window.location.origin}/#/book-appointment`;
+    navigator.clipboard.writeText(link);
+    alert('Booking Link Copied! Share this with your patients.');
   };
 
   return (
@@ -46,13 +52,19 @@ const Appointments: React.FC = () => {
            <p className="text-slate-500 text-sm">Manage bookings and schedule</p>
         </div>
         <div className="flex gap-2">
+            <button 
+              onClick={copyBookingLink}
+              className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors text-sm font-medium hover:bg-slate-50"
+            >
+               <LinkIcon size={16} /> Copy Online Booking URL
+            </button>
             <a 
               href={getWhatsAppLink()} 
               target="_blank" 
               rel="noreferrer"
               className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors text-sm font-medium"
             >
-              <Share2 size={16} /> Patient Booking Link
+              <Share2 size={16} /> WhatsApp Link
             </a>
         </div>
       </div>
@@ -71,6 +83,9 @@ const Appointments: React.FC = () => {
         ))}
       </div>
 
+      {loading ? (
+        <div className="p-12 flex justify-center"><Loader2 className="animate-spin text-teal-600" /></div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {appointments.length === 0 ? (
            <div className="col-span-full text-center py-12 text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
@@ -88,7 +103,7 @@ const Appointments: React.FC = () => {
                    </div>
                  </div>
                  <div className="text-right">
-                    <div className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-bold">{app.time}</div>
+                    <div className="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs font-bold">{app.time.slice(0, 5)}</div>
                     <div className="text-xs text-slate-400 mt-1">{app.date}</div>
                  </div>
                </div>
@@ -135,35 +150,35 @@ const Appointments: React.FC = () => {
           ))
         )}
       </div>
+      )}
       
-      {/* Simulation of Booking Form (Visual Only for now, effectively "Add Appointment") */}
+      {/* Simulation of Booking Form */}
       <div className="mt-12 bg-teal-50 rounded-xl p-8 border border-teal-100">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
-            <h3 className="text-xl font-bold text-teal-900">Patient Online Booking Portal</h3>
+            <h3 className="text-xl font-bold text-teal-900">Manual Booking</h3>
             <p className="text-teal-700 mt-2 max-w-xl">
-              Share the WhatsApp link with your patients. When they message you, you can manually add their appointment here to keep track of the schedule.
+              Add walk-in patients or manual phone bookings here.
             </p>
           </div>
           <button 
-            onClick={() => {
+            onClick={async () => {
               // Add a dummy appointment for demo
-              const newAppt: Appointment = {
-                id: Date.now().toString(),
-                patientName: "New Patient (Demo)",
-                mobile: "9876543210",
+              const newAppt: Partial<Appointment> = {
+                patientName: "Manual Walk-in",
+                mobile: "0000000000",
                 date: new Date().toISOString().split('T')[0],
-                time: "11:00",
+                time: "12:00",
                 status: AppointmentStatus.Pending,
-                type: 'Online',
-                notes: 'Requested via WhatsApp'
+                type: 'Walk-in',
+                notes: 'Reception booking'
               };
-              StorageService.saveAppointment(newAppt);
+              await StorageService.saveAppointment(newAppt);
               loadAppointments();
             }}
             className="bg-teal-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-teal-700 font-medium"
           >
-             + Add Mock Request
+             + Add Walk-in
           </button>
         </div>
       </div>
