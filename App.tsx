@@ -6,17 +6,21 @@ import Patients from './components/Patients';
 import PatientDetails from './components/PatientDetails';
 import Appointments from './components/Appointments';
 import OnlineBooking from './components/OnlineBooking';
+import Welcome from './components/Welcome';
 import { Menu } from 'lucide-react';
 
 // Wrapper to conditionally render Sidebar
 const AppContent: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
-  const isPublicPage = location.pathname === '/book-appointment';
+  
+  // Pages that display without the sidebar
+  const isPublicPage = location.pathname === '/book-appointment' || location.pathname === '/';
 
   if (isPublicPage) {
     return (
       <Routes>
+        <Route path="/" element={<Welcome />} />
         <Route path="/book-appointment" element={<OnlineBooking />} />
       </Routes>
     );
@@ -37,11 +41,12 @@ const AppContent: React.FC = () => {
 
         <main className="flex-1 overflow-x-hidden overflow-y-auto">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/patients" element={<Patients />} />
             <Route path="/patients/:id" element={<PatientDetails />} />
             <Route path="/appointments" element={<Appointments />} />
-            <Route path="/new-visit" element={<Navigate to="/patients" replace />} />
+            {/* Fallback redirect */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
       </div>

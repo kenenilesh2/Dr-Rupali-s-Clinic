@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { Patient, Gender } from '../types';
-import { Plus, Search, Phone, MapPin, ChevronRight, X, Loader2 } from 'lucide-react';
+import { Plus, Search, Phone, MapPin, ChevronRight, X, Loader2, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BLOOD_GROUPS } from '../constants';
 
@@ -11,7 +11,9 @@ const Patients: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const navigate = useNavigate();
+  
+  // Edit State
+  const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<Patient>>({
@@ -50,16 +52,58 @@ const Patients: React.FC = () => {
     p.mobile.includes(search)
   );
 
+  const resetForm = () => {
+    setFormData({ name: '', mobile: '', age: 0, gender: Gender.Male, address: '', bloodGroup: '', allergies: '', chronicConditions: '' });
+    setEditingPatientId(null);
+  };
+
+  const openAddModal = () => {
+    resetForm();
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (patient: Patient) => {
+    setFormData({
+      name: patient.name,
+      mobile: patient.mobile,
+      age: patient.age,
+      gender: patient.gender,
+      address: patient.address,
+      bloodGroup: patient.bloodGroup || '',
+      allergies: patient.allergies || '',
+      chronicConditions: patient.chronicConditions || ''
+    });
+    setEditingPatientId(patient.id);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete patient "${name}"? This will also delete all their visit history. This action cannot be undone.`)) {
+      setLoading(true);
+      await StorageService.deletePatient(id);
+      await fetchPatients();
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.mobile) return;
     
     setSubmitting(true);
-    await StorageService.savePatient(formData);
+    
+    if (editingPatientId) {
+      // Update existing
+      await StorageService.updatePatient(editingPatientId, formData);
+    } else {
+      // Create new
+      await StorageService.savePatient(formData);
+    }
+
     await fetchPatients(); // Refresh list
     setSubmitting(false);
     setIsModalOpen(false);
-    setFormData({ name: '', mobile: '', age: 0, gender: Gender.Male, address: '', bloodGroup: '', allergies: '', chronicConditions: '' });
+    resetForm();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -77,7 +121,7 @@ const Patients: React.FC = () => {
           </p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={openAddModal}
           className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
         >
           <Plus size={20} />
@@ -118,7 +162,7 @@ const Patients: React.FC = () => {
                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Contact</th>
                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Info</th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
+                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -141,13 +185,30 @@ const Patients: React.FC = () => {
                       </div>
                       <div className="text-xs text-slate-400 truncate max-w-[200px]">{patient.address}</div>
                     </td>
-                    <td className="p-4">
-                      <Link 
-                        to={`/patients/${patient.id}`}
-                        className="inline-flex items-center gap-1 text-teal-600 hover:text-teal-800 text-sm font-medium"
-                      >
-                        View Record <ChevronRight size={16} />
-                      </Link>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Link 
+                          to={`/patients/${patient.id}`}
+                          title="View Details"
+                          className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                        >
+                          <ChevronRight size={18} />
+                        </Link>
+                        <button
+                          onClick={() => openEditModal(patient)}
+                          title="Edit Patient"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                         <button
+                          onClick={() => handleDelete(patient.id, patient.name)}
+                          title="Delete Patient"
+                          className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -157,12 +218,14 @@ const Patients: React.FC = () => {
         </div>
       </div>
 
-      {/* Add Patient Modal */}
+      {/* Add/Edit Patient Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
-              <h3 className="text-xl font-bold text-slate-800">Register New Patient</h3>
+              <h3 className="text-xl font-bold text-slate-800">
+                {editingPatientId ? 'Edit Patient Details' : 'Register New Patient'}
+              </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X size={24} />
               </button>
@@ -216,7 +279,7 @@ const Patients: React.FC = () => {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
                 <button type="submit" disabled={submitting} className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 shadow-sm flex items-center gap-2">
                   {submitting && <Loader2 className="animate-spin" size={16} />}
-                  Register Patient
+                  {editingPatientId ? 'Update Record' : 'Register Patient'}
                 </button>
               </div>
             </form>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, Stethoscope, Settings, Menu, X } from 'lucide-react';
-import { CLINIC_NAME, DOCTOR_NAME } from '../constants';
+import { LayoutDashboard, Users, Calendar, Stethoscope, Settings, X } from 'lucide-react';
+import { DOCTOR_NAME } from '../constants';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -10,10 +10,11 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const links = [
-    { to: '/', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+    { to: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
     { to: '/patients', icon: <Users size={20} />, label: 'Patients' },
     { to: '/appointments', icon: <Calendar size={20} />, label: 'Appointments' },
-    { to: '/new-visit', icon: <Stethoscope size={20} />, label: 'Quick Visit' },
+    // Redirects to patient list for creating new visit logic for now
+    { to: '/patients', icon: <Stethoscope size={20} />, label: 'Quick Visit' },
   ];
 
   return (
@@ -44,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         <nav className="mt-6 px-4 space-y-2">
           {links.map((link) => (
             <NavLink
-              key={link.to}
+              key={link.to + link.label}
               to={link.to}
               onClick={() => setIsOpen(false)}
               className={({ isActive }) => `
@@ -63,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             <Settings size={18} />
             <span className="text-sm">Settings</span>
           </div>
-          <p className="text-[10px] text-slate-600 text-center mt-2">v1.0.0 • Secure Local Storage</p>
+          <p className="text-[10px] text-slate-600 text-center mt-2">v1.1.0 • Supabase Connected</p>
         </div>
       </div>
     </>
