@@ -57,12 +57,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               to={link.to}
               onClick={() => setIsOpen(false)}
               className={({ isActive }) => `
-                flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
+                flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative
                 ${isActive ? 'bg-teal-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}
               `}
             >
               {link.icon}
               <span className="font-medium">{link.label}</span>
+              {/* Optional: Add a subtle indicator for Appointments if you want to highlight it */}
+              {link.to === '/appointments' && (
+                  <span className="absolute right-4 w-2 h-2 bg-red-500 rounded-full animate-pulse opacity-0 group-hover:opacity-100 transition-opacity"></span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -88,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             <span className="text-sm">Settings</span>
           </NavLink>
           
-          <p className="text-[10px] text-slate-600 text-center mt-2">v1.3.0 • Supabase Connected</p>
+          <p className="text-[10px] text-slate-600 text-center mt-2">v1.4.0 • Supabase Connected</p>
         </div>
       </div>
     </>
