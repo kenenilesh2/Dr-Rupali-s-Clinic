@@ -8,6 +8,7 @@ import PatientDetails from './components/PatientDetails';
 import Appointments from './components/Appointments';
 import OnlineBooking from './components/OnlineBooking';
 import Inventory from './components/Inventory';
+import Finance from './components/Finance';
 import Welcome from './components/Welcome';
 import Login from './components/Login';
 import Settings from './components/Settings';
@@ -57,6 +58,7 @@ const AppContent: React.FC = () => {
             <Route path="/patients/:id" element={<PrivateRoute><PatientDetails /></PrivateRoute>} />
             <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />
             <Route path="/inventory" element={<PrivateRoute><Inventory /></PrivateRoute>} />
+            <Route path="/finance" element={<PrivateRoute><Finance /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
             {/* Fallback redirect */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

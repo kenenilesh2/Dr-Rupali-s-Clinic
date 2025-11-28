@@ -1,6 +1,6 @@
 
 import { supabase } from './supabaseClient';
-import { Patient, Visit, Appointment, AppointmentStatus, InventoryItem } from '../types';
+import { Patient, Visit, Appointment, AppointmentStatus, InventoryItem, Expense } from '../types';
 
 // Helper to map DB snake_case to app camelCase
 const mapPatientFromDB = (p: any): Patient => ({
@@ -47,6 +47,15 @@ const mapInventoryFromDB = (i: any): InventoryItem => ({
   quantity: i.quantity,
   minLevel: i.min_level,
   updatedAt: i.updated_at
+});
+
+const mapExpenseFromDB = (e: any): Expense => ({
+  id: e.id,
+  title: e.title,
+  amount: e.amount,
+  category: e.category,
+  date: e.date,
+  notes: e.notes
 });
 
 export const StorageService = {
@@ -207,6 +216,28 @@ export const StorageService = {
 
   deleteInventoryItem: async (id: string) => {
     await supabase.from('inventory').delete().eq('id', id);
+  },
+
+  // Expenses
+  getExpenses: async (): Promise<Expense[]> => {
+    const { data, error } = await supabase.from('expenses').select('*').order('date', { ascending: false });
+    if (error) return [];
+    return data.map(mapExpenseFromDB);
+  },
+
+  addExpense: async (expense: Partial<Expense>) => {
+    const payload = {
+      title: expense.title,
+      amount: expense.amount,
+      category: expense.category,
+      date: expense.date,
+      notes: expense.notes
+    };
+    await supabase.from('expenses').insert([payload]);
+  },
+
+  deleteExpense: async (id: string) => {
+    await supabase.from('expenses').delete().eq('id', id);
   },
 
   // Stats

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { StorageService } from '../services/storageService';
@@ -34,6 +35,9 @@ const PatientDetails: React.FC = () => {
   const [certDays, setCertDays] = useState(2);
   const [certContent, setCertContent] = useState('');
   const [generatingCert, setGeneratingCert] = useState(false);
+
+  // Receipt State
+  const [receiptVisit, setReceiptVisit] = useState<Visit | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -208,7 +212,7 @@ Take care!
     window.open(url, '_blank');
   };
 
-  const printCertificate = () => {
+  const printDocument = () => {
     window.print();
   };
 
@@ -514,12 +518,21 @@ Take care!
                  </div>
                  <div className="text-right">
                     <span className="block text-xl font-bold text-slate-800">₹{visit.fees}</span>
-                    <button 
-                      onClick={() => sendWhatsAppReceipt(visit)}
-                      className="mt-2 text-green-600 text-xs font-medium flex items-center gap-1 hover:underline"
-                    >
-                      <MessageCircle size={12} /> Send WhatsApp
-                    </button>
+                    <div className="flex gap-2 mt-2">
+                       <button 
+                         onClick={() => setReceiptVisit(visit)}
+                         className="text-slate-500 text-xs font-medium flex items-center gap-1 hover:text-teal-600 border border-slate-200 rounded px-2 py-1 bg-slate-50"
+                         title="Print Receipt"
+                       >
+                         <Printer size={12} /> Receipt
+                       </button>
+                       <button 
+                         onClick={() => sendWhatsAppReceipt(visit)}
+                         className="text-green-600 text-xs font-medium flex items-center gap-1 hover:underline"
+                       >
+                         <MessageCircle size={12} /> Send WhatsApp
+                       </button>
+                    </div>
                  </div>
                </div>
                
@@ -596,7 +609,7 @@ Take care!
                  />
                </div>
 
-               <button onClick={printCertificate} className="w-full py-3 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-900 flex items-center justify-center gap-2">
+               <button onClick={printDocument} className="w-full py-3 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-900 flex items-center justify-center gap-2">
                  <Printer size={18} /> Print / Save PDF
                </button>
             </div>
@@ -604,62 +617,149 @@ Take care!
         </div>
       )}
 
+      {/* Invoice Receipt Modal Overlay (Hidden unless active) */}
+      {receiptVisit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
+           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+             <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+                <h3 className="font-bold text-slate-800">Payment Receipt</h3>
+                <button onClick={() => setReceiptVisit(null)} className="text-slate-400 hover:text-slate-600"><XIcon /></button>
+             </div>
+             <div className="p-6">
+                <p className="text-center text-sm text-slate-500 mb-4">
+                  Preview showing below. Click print to generate PDF.
+                </p>
+                <div className="border border-slate-200 p-4 rounded bg-slate-50 text-xs font-mono mb-6">
+                   <p className="font-bold text-center border-b border-slate-200 pb-2 mb-2">{CLINIC_NAME}</p>
+                   <div className="flex justify-between">
+                     <span>Date:</span>
+                     <span>{receiptVisit.date}</span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span>Patient:</span>
+                     <span>{patient.name}</span>
+                   </div>
+                   <div className="my-2 border-t border-dashed border-slate-300"></div>
+                   <div className="flex justify-between font-bold">
+                     <span>Consultation Fees:</span>
+                     <span>₹{receiptVisit.fees}</span>
+                   </div>
+                </div>
+                <button onClick={printDocument} className="w-full py-3 bg-teal-600 text-white rounded-lg font-bold hover:bg-teal-700 flex items-center justify-center gap-2">
+                   <Printer size={18} /> Print Invoice
+                </button>
+             </div>
+           </div>
+        </div>
+      )}
+
       {/* Professional Print View - Letterhead Style */}
       <div className="hidden print:block fixed inset-0 bg-white z-[100] p-16 text-black">
-        <div className="h-full flex flex-col font-serif">
-          
-          {/* Letterhead Header */}
-          <div className="border-b-2 border-slate-800 pb-4 mb-8 text-center">
-             <h1 className="text-4xl font-bold mb-2 uppercase tracking-wide text-slate-900">{CLINIC_NAME}</h1>
-             <div className="flex justify-between items-end px-4 mt-4">
-               <div className="text-left">
-                 <h2 className="text-xl font-bold">{DOCTOR_NAME}</h2>
-                 <p className="text-sm text-slate-600">{DOCTOR_DEGREE}</p>
-                 <p className="text-xs text-slate-500">Reg No: 20562/MH</p>
-               </div>
-               <div className="text-right text-sm">
-                 <p>Opp. Manpasand Mithaiwala,</p>
-                 <p>Bapgaon Naka, Bhiwandi,</p>
-                 <p>Thane 421302</p>
-                 <p className="font-bold mt-1">Mo: {patient.mobile}</p>
-               </div>
-             </div>
-          </div>
+        {receiptVisit ? (
+           // INVOICE PRINT VIEW
+           <div className="h-full flex flex-col font-sans">
+              <div className="text-center border-b-2 border-slate-800 pb-4 mb-8">
+                 <h1 className="text-3xl font-bold uppercase tracking-widest">{CLINIC_NAME}</h1>
+                 <p className="text-sm mt-1">{DOCTOR_NAME} &bull; {DOCTOR_DEGREE}</p>
+                 <p className="text-xs text-slate-500 mt-1">Reg No: 20562/MH</p>
+              </div>
+              <div className="flex justify-between items-end mb-8">
+                 <div>
+                   <p className="text-xs uppercase text-slate-500 font-bold">Billed To:</p>
+                   <h2 className="text-xl font-bold">{patient.name}</h2>
+                   <p className="text-sm">{patient.mobile}</p>
+                 </div>
+                 <div className="text-right">
+                   <p className="text-xs uppercase text-slate-500 font-bold">Invoice Date:</p>
+                   <p className="text-lg font-bold">{receiptVisit.date}</p>
+                   <p className="text-sm">Inv No: {receiptVisit.id.slice(0, 6).toUpperCase()}</p>
+                 </div>
+              </div>
 
-          {/* Meta Data */}
-          <div className="flex justify-between mb-8 px-4 font-bold text-sm">
-            <p>Ref No: {new Date().getFullYear()}/{Math.floor(Math.random() * 1000)}</p>
-            <p>Date: {new Date().toLocaleDateString()}</p>
-          </div>
+              <table className="w-full text-left mb-8">
+                 <thead>
+                   <tr className="border-b-2 border-slate-800">
+                     <th className="py-2">Description</th>
+                     <th className="py-2 text-right">Amount</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   <tr>
+                     <td className="py-4">
+                       <p className="font-bold">Medical Consultation & Treatment</p>
+                       <p className="text-sm text-slate-600">Diagnosis: {receiptVisit.diagnosis}</p>
+                     </td>
+                     <td className="py-4 text-right align-top font-bold">₹{receiptVisit.fees}</td>
+                   </tr>
+                 </tbody>
+                 <tfoot>
+                   <tr className="border-t-2 border-slate-800">
+                     <td className="py-4 font-bold text-xl text-right">TOTAL</td>
+                     <td className="py-4 font-bold text-xl text-right">₹{receiptVisit.fees}</td>
+                   </tr>
+                 </tfoot>
+              </table>
 
-          {/* Title */}
-          <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold underline uppercase tracking-widest decoration-2 underline-offset-4">
-              Medical {certType} Certificate
-            </h2>
-          </div>
-
-          {/* Body */}
-          <div className="text-lg leading-loose px-8 flex-1 text-justify">
-             {certContent ? (
-               <p style={{ whiteSpace: 'pre-wrap' }}>{certContent}</p>
-             ) : (
-               <p>Content is being generated...</p>
-             )}
-          </div>
-
-          {/* Footer */}
-          <div className="mt-auto px-8 pb-8 flex justify-end">
-            <div className="text-center w-64">
-               <div className="h-16"></div> {/* Space for signature */}
-               <div className="border-t border-slate-800 pt-2">
-                 <p className="font-bold text-lg">{DOCTOR_NAME}</p>
-                 <p className="text-sm uppercase tracking-wider text-slate-600">Homeopathic Physician</p>
-               </div>
+              <div className="mt-auto text-center text-xs text-slate-400">
+                 <p>Thank you for visiting {CLINIC_NAME}. Get well soon!</p>
+              </div>
+           </div>
+        ) : (
+          // CERTIFICATE PRINT VIEW
+           <div className="h-full flex flex-col font-serif">
+            {/* Letterhead Header */}
+            <div className="border-b-2 border-slate-800 pb-4 mb-8 text-center">
+              <h1 className="text-4xl font-bold mb-2 uppercase tracking-wide text-slate-900">{CLINIC_NAME}</h1>
+              <div className="flex justify-between items-end px-4 mt-4">
+                <div className="text-left">
+                  <h2 className="text-xl font-bold">{DOCTOR_NAME}</h2>
+                  <p className="text-sm text-slate-600">{DOCTOR_DEGREE}</p>
+                  <p className="text-xs text-slate-500">Reg No: 20562/MH</p>
+                </div>
+                <div className="text-right text-sm">
+                  <p>Opp. Manpasand Mithaiwala,</p>
+                  <p>Bapgaon Naka, Bhiwandi,</p>
+                  <p>Thane 421302</p>
+                  <p className="font-bold mt-1">Mo: {patient.mobile}</p>
+                </div>
+              </div>
             </div>
-          </div>
+
+            {/* Meta Data */}
+            <div className="flex justify-between mb-8 px-4 font-bold text-sm">
+              <p>Ref No: {new Date().getFullYear()}/{Math.floor(Math.random() * 1000)}</p>
+              <p>Date: {new Date().toLocaleDateString()}</p>
+            </div>
+
+            {/* Title */}
+            <div className="text-center mb-12">
+              <h2 className="text-2xl font-bold underline uppercase tracking-widest decoration-2 underline-offset-4">
+                Medical {certType} Certificate
+              </h2>
+            </div>
+
+            {/* Body */}
+            <div className="text-lg leading-loose px-8 flex-1 text-justify">
+              {certContent ? (
+                <p style={{ whiteSpace: 'pre-wrap' }}>{certContent}</p>
+              ) : (
+                <p>Content is being generated...</p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-auto px-8 pb-8 flex justify-end">
+              <div className="text-center w-64">
+                <div className="h-16"></div> {/* Space for signature */}
+                <div className="border-t border-slate-800 pt-2">
+                  <p className="font-bold text-lg">{DOCTOR_NAME}</p>
+                  <p className="text-sm uppercase tracking-wider text-slate-600">Homeopathic Physician</p>
+                </div>
+              </div>
+            </div>
           
-        </div>
+          </div>
+        )}
       </div>
 
     </div>

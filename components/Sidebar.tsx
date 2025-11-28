@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, Settings, X, Archive, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Settings, X, Archive, LogOut, IndianRupee } from 'lucide-react';
 import { DOCTOR_NAME } from '../constants';
 
 interface SidebarProps {
@@ -17,6 +17,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { to: '/patients', icon: <Users size={20} />, label: 'Patients' },
     { to: '/appointments', icon: <Calendar size={20} />, label: 'Appointments' },
     { to: '/inventory', icon: <Archive size={20} />, label: 'Pharmacy / Stock' },
+    { to: '/finance', icon: <IndianRupee size={20} />, label: 'Finance & Billing' },
   ];
 
   const handleLogout = () => {
@@ -87,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             <span className="text-sm">Settings</span>
           </NavLink>
           
-          <p className="text-[10px] text-slate-600 text-center mt-2">v1.2.0 • Supabase Connected</p>
+          <p className="text-[10px] text-slate-600 text-center mt-2">v1.3.0 • Supabase Connected</p>
         </div>
       </div>
     </>

@@ -73,3 +73,12 @@ export interface InventoryItem {
   minLevel: number;
   updatedAt?: string;
 }
+
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  category: string;
+  date: string;
+  notes?: string;
+}
