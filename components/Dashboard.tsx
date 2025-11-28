@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState } from 'react';
 import { StorageService } from '../services/storageService';
 import { DashboardStats, Appointment, AppointmentStatus } from '../types';
-import { Users, CalendarCheck, IndianRupee, Activity, Clock } from 'lucide-react';
+import { Users, CalendarCheck, IndianRupee, Activity, Clock, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -103,6 +104,21 @@ const Dashboard: React.FC = () => {
           </Link>
         ))}
       </div>
+
+      {/* Alerts Section */}
+      {stats.lowStockItems > 0 && (
+        <Link to="/inventory">
+          <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-red-100 transition-colors">
+            <div className="bg-red-100 p-3 rounded-full text-red-600">
+               <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h4 className="font-bold text-red-800">Low Stock Alert</h4>
+              <p className="text-sm text-red-700">There are {stats.lowStockItems} medicines running low in your inventory. Click to review.</p>
+            </div>
+          </div>
+        </Link>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Appointments Today */}

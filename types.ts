@@ -1,3 +1,4 @@
+
 export enum Gender {
   Male = 'Male',
   Female = 'Female',
@@ -60,4 +61,15 @@ export interface DashboardStats {
   totalVisits: number;
   todayAppointments: number;
   totalRevenue: number;
+  lowStockItems: number;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  potency: string; // e.g. 30, 200, 1M, Q
+  type: 'Dilution' | 'Mother Tincture' | 'Bio-Chemic' | 'Ointment' | 'Other';
+  quantity: number;
+  minLevel: number;
+  updatedAt?: string;
 }

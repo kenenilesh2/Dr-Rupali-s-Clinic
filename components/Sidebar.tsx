@@ -1,6 +1,7 @@
+
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, Stethoscope, Settings, X } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Users, Calendar, Stethoscope, Settings, X, Archive, LogOut } from 'lucide-react';
 import { DOCTOR_NAME } from '../constants';
 
 interface SidebarProps {
@@ -9,13 +10,19 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
+  const navigate = useNavigate();
+  
   const links = [
     { to: '/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
     { to: '/patients', icon: <Users size={20} />, label: 'Patients' },
     { to: '/appointments', icon: <Calendar size={20} />, label: 'Appointments' },
-    // Redirects to patient list for creating new visit logic for now
-    { to: '/patients', icon: <Stethoscope size={20} />, label: 'Quick Visit' },
+    { to: '/inventory', icon: <Archive size={20} />, label: 'Pharmacy / Stock' },
   ];
+
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    navigate('/login');
+  };
 
   return (
     <>
@@ -60,11 +67,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         </nav>
 
         <div className="absolute bottom-0 w-full p-4 border-t border-slate-800">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 text-red-400 px-4 py-2 hover:bg-slate-800 rounded-lg transition-colors mb-2"
+          >
+            <LogOut size={18} />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
           <div className="flex items-center gap-3 text-slate-400 px-4 py-2">
             <Settings size={18} />
             <span className="text-sm">Settings</span>
           </div>
-          <p className="text-[10px] text-slate-600 text-center mt-2">v1.1.0 • Supabase Connected</p>
+          <p className="text-[10px] text-slate-600 text-center mt-2">v1.2.0 • Supabase Connected</p>
         </div>
       </div>
     </>

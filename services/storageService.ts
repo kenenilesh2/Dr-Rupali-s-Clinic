@@ -1,5 +1,6 @@
+
 import { supabase } from './supabaseClient';
-import { Patient, Visit, Appointment, AppointmentStatus } from '../types';
+import { Patient, Visit, Appointment, AppointmentStatus, InventoryItem } from '../types';
 
 // Helper to map DB snake_case to app camelCase
 const mapPatientFromDB = (p: any): Patient => ({
@@ -36,6 +37,16 @@ const mapAppointmentFromDB = (a: any): Appointment => ({
   status: a.status as AppointmentStatus,
   type: a.type as 'Online' | 'Walk-in',
   notes: a.notes,
+});
+
+const mapInventoryFromDB = (i: any): InventoryItem => ({
+  id: i.id,
+  name: i.name,
+  potency: i.potency,
+  type: i.type,
+  quantity: i.quantity,
+  minLevel: i.min_level,
+  updatedAt: i.updated_at
 });
 
 export const StorageService = {
@@ -171,6 +182,33 @@ export const StorageService = {
     await supabase.from('appointments').delete().eq('id', id);
   },
 
+  // Inventory
+  getInventory: async (): Promise<InventoryItem[]> => {
+    const { data, error } = await supabase.from('inventory').select('*').order('name');
+    if (error) return [];
+    return data.map(mapInventoryFromDB);
+  },
+
+  saveInventoryItem: async (item: Partial<InventoryItem>) => {
+    const payload = {
+      name: item.name,
+      potency: item.potency,
+      type: item.type,
+      quantity: item.quantity,
+      min_level: item.minLevel
+    };
+
+    if (item.id) {
+      await supabase.from('inventory').update(payload).eq('id', item.id);
+    } else {
+      await supabase.from('inventory').insert([payload]);
+    }
+  },
+
+  deleteInventoryItem: async (id: string) => {
+    await supabase.from('inventory').delete().eq('id', id);
+  },
+
   // Stats
   getStats: async () => {
     const { count: patientCount } = await supabase.from('patients').select('*', { count: 'exact', head: true });
@@ -183,15 +221,20 @@ export const StorageService = {
         .eq('date', todayStr)
         .neq('status', AppointmentStatus.Cancelled);
 
-    // Calculate revenue (requires fetching all fees, might be heavy for large DBs, can optimize with SQL function later)
+    // Calculate revenue 
     const { data: visits } = await supabase.from('visits').select('fees');
     const totalRevenue = visits ? visits.reduce((sum, v) => sum + (Number(v.fees) || 0), 0) : 0;
+
+    // Calculate low stock items (doing client side filtering for simplicity or can do SQL query)
+    const { data: inventory } = await supabase.from('inventory').select('quantity, min_level');
+    const lowStockItems = inventory ? inventory.filter((i: any) => i.quantity <= i.min_level).length : 0;
 
     return {
       totalPatients: patientCount || 0,
       totalVisits: visitCount || 0,
       todayAppointments: todayApptCount || 0,
-      totalRevenue
+      totalRevenue,
+      lowStockItems
     };
   }
 };
