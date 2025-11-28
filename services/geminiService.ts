@@ -2,15 +2,10 @@ import { GoogleGenAI } from "@google/genai";
 
 // Access API key from process.env as per Google GenAI SDK guidelines.
 // Assume process.env.API_KEY is pre-configured and available.
-const apiKey = process.env.API_KEY;
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const GeminiService = {
-  isAvailable: !!ai,
-
   async getHealthAdvice(symptoms: string, diagnosis: string): Promise<string> {
-    if (!ai) return "AI Service not configured.";
-    
     try {
       const prompt = `
         You are a helpful medical assistant for a Homeopathy doctor (BHMS). 
@@ -34,8 +29,6 @@ export const GeminiService = {
   },
 
   async summarizeNotes(rawNotes: string): Promise<string> {
-    if (!ai) return rawNotes;
-
     try {
       const prompt = `
         Summarize the following clinical notes into a concise, professional medical format suitable for a patient history record.
