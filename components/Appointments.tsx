@@ -1,13 +1,19 @@
+
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { Appointment, AppointmentStatus } from '../types';
 import { DOCTOR_MOBILE, CLINIC_NAME } from '../constants';
-import { Calendar, Phone, Clock, CheckCircle, XCircle, Share2, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Calendar, Phone, Clock, CheckCircle, XCircle, Share2, Link as LinkIcon, Loader2, Edit2, Plus, X, Save } from 'lucide-react';
 
 const Appointments: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [filter, setFilter] = useState<'All' | 'Today' | 'Pending'>('Today');
   const [loading, setLoading] = useState(true);
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState<Partial<Appointment>>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadAppointments();
@@ -42,6 +48,41 @@ const Appointments: React.FC = () => {
     const link = `${window.location.origin}/#/book-appointment`;
     navigator.clipboard.writeText(link);
     alert('Booking Link Copied! Share this with your patients.');
+  };
+
+  // --- Edit / Add Logic ---
+  const openAddModal = () => {
+    setFormData({
+      patientName: '',
+      mobile: '',
+      date: new Date().toISOString().split('T')[0],
+      time: '10:00',
+      status: AppointmentStatus.Pending,
+      type: 'Walk-in',
+      notes: ''
+    });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (app: Appointment) => {
+    setFormData({ ...app });
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.patientName || !formData.date || !formData.mobile) return;
+    
+    setSaving(true);
+    await StorageService.saveAppointment(formData);
+    setSaving(false);
+    setIsModalOpen(false);
+    loadAppointments();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -94,7 +135,7 @@ const Appointments: React.FC = () => {
            </div>
         ) : (
           appointments.map(app => (
-            <div key={app.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex flex-col h-full">
+            <div key={app.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex flex-col h-full hover:shadow-md transition-shadow">
                <div className="flex justify-between items-start mb-3">
                  <div>
                    <h3 className="font-bold text-slate-800 text-lg">{app.patientName}</h3>
@@ -142,8 +183,11 @@ const Appointments: React.FC = () => {
                      <CheckCircle size={20} />
                    </button>
                  )}
-                  <button className="text-xs text-teal-600 font-medium px-3 py-2 hover:bg-teal-50 rounded-lg">
-                    Edit
+                  <button 
+                    onClick={() => openEditModal(app)}
+                    className="text-xs text-teal-600 font-medium px-3 py-2 hover:bg-teal-50 rounded-lg flex items-center gap-1"
+                  >
+                    <Edit2 size={14} /> Edit
                   </button>
                </div>
             </div>
@@ -152,7 +196,7 @@ const Appointments: React.FC = () => {
       </div>
       )}
       
-      {/* Simulation of Booking Form */}
+      {/* Manual Booking Button */}
       <div className="mt-12 bg-teal-50 rounded-xl p-8 border border-teal-100">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
@@ -162,26 +206,114 @@ const Appointments: React.FC = () => {
             </p>
           </div>
           <button 
-            onClick={async () => {
-              // Add a dummy appointment for demo
-              const newAppt: Partial<Appointment> = {
-                patientName: "Manual Walk-in",
-                mobile: "0000000000",
-                date: new Date().toISOString().split('T')[0],
-                time: "12:00",
-                status: AppointmentStatus.Pending,
-                type: 'Walk-in',
-                notes: 'Reception booking'
-              };
-              await StorageService.saveAppointment(newAppt);
-              loadAppointments();
-            }}
-            className="bg-teal-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-teal-700 font-medium"
+            onClick={openAddModal}
+            className="bg-teal-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-teal-700 font-medium flex items-center gap-2"
           >
-             + Add Walk-in
+             <Plus size={20} /> Add Walk-in
           </button>
         </div>
       </div>
+
+      {/* Add/Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800">
+                {formData.id ? 'Edit Appointment' : 'New Manual Booking'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSave} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Patient Name</label>
+                <input 
+                  required 
+                  name="patientName"
+                  value={formData.patientName} 
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" 
+                  placeholder="e.g. Amit Kumar"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Mobile Number</label>
+                <input 
+                  required 
+                  name="mobile"
+                  type="tel"
+                  value={formData.mobile} 
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                   <input 
+                     required 
+                     type="date" 
+                     name="date"
+                     value={formData.date} 
+                     onChange={handleInputChange}
+                     className="w-full p-2 border rounded-lg" 
+                   />
+                </div>
+                <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
+                   <input 
+                     required 
+                     type="time" 
+                     name="time"
+                     value={formData.time} 
+                     onChange={handleInputChange}
+                     className="w-full p-2 border rounded-lg" 
+                   />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                   <select name="type" value={formData.type} onChange={handleInputChange} className="w-full p-2 border rounded-lg">
+                     <option value="Walk-in">Walk-in</option>
+                     <option value="Online">Online</option>
+                   </select>
+                </div>
+                <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                   <select name="status" value={formData.status} onChange={handleInputChange} className="w-full p-2 border rounded-lg">
+                     {Object.values(AppointmentStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                   </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <textarea 
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-lg" 
+                  rows={2}
+                />
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit" 
+                  disabled={saving}
+                  className="w-full bg-teal-600 text-white py-2 rounded-lg font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                  {formData.id ? 'Update Appointment' : 'Book Appointment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
