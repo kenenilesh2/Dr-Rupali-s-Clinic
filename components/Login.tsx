@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, ChevronRight } from 'lucide-react';
 import { DOCTOR_NAME, CLINIC_NAME } from '../constants';
@@ -9,10 +9,20 @@ const Login: React.FC = () => {
   const [error, setError] = useState(false);
   const navigate = useNavigate();
 
+  // Redirect if already logged in
+  useEffect(() => {
+    if (localStorage.getItem('isAuthenticated') === 'true') {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Hardcoded PIN for demonstration. In production, use backend auth.
-    if (pin === '1234') {
+    
+    // Get stored PIN or default to '1234'
+    const storedPin = localStorage.getItem('clinic_pin') || '1234';
+
+    if (pin === storedPin) {
       localStorage.setItem('isAuthenticated', 'true');
       navigate('/dashboard');
     } else {

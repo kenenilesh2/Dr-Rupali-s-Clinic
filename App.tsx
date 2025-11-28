@@ -10,6 +10,7 @@ import OnlineBooking from './components/OnlineBooking';
 import Inventory from './components/Inventory';
 import Welcome from './components/Welcome';
 import Login from './components/Login';
+import Settings from './components/Settings';
 import { Menu } from 'lucide-react';
 
 // Guard for protected routes
@@ -56,6 +57,7 @@ const AppContent: React.FC = () => {
             <Route path="/patients/:id" element={<PrivateRoute><PatientDetails /></PrivateRoute>} />
             <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />
             <Route path="/inventory" element={<PrivateRoute><Inventory /></PrivateRoute>} />
+            <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
             {/* Fallback redirect */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

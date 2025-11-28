@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, Stethoscope, Settings, X, Archive, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Settings, X, Archive, LogOut } from 'lucide-react';
 import { DOCTOR_NAME } from '../constants';
 
 interface SidebarProps {
@@ -74,10 +74,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             <LogOut size={18} />
             <span className="text-sm font-medium">Logout</span>
           </button>
-          <div className="flex items-center gap-3 text-slate-400 px-4 py-2">
+          
+          <NavLink 
+            to="/settings"
+            onClick={() => setIsOpen(false)}
+            className={({ isActive }) => `
+              flex items-center gap-3 px-4 py-2 rounded-lg transition-colors
+              ${isActive ? 'text-teal-400 bg-slate-800' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+            `}
+          >
             <Settings size={18} />
             <span className="text-sm">Settings</span>
-          </div>
+          </NavLink>
+          
           <p className="text-[10px] text-slate-600 text-center mt-2">v1.2.0 • Supabase Connected</p>
         </div>
       </div>
