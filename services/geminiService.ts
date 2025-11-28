@@ -1,6 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
+// Access API key from process.env as per Google GenAI SDK guidelines.
+// Assume process.env.API_KEY is pre-configured and available.
+const apiKey = process.env.API_KEY;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const GeminiService = {
