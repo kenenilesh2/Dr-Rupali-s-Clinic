@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { Patient, Gender } from '../types';
-import { Plus, Search, Phone, MapPin, ChevronRight, X, Loader2, Pencil, Trash2, AlertTriangle } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Plus, Search, Phone, MapPin, ChevronRight, X, Loader2, Pencil, Trash2, Mic } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { BLOOD_GROUPS } from '../constants';
 
 const Patients: React.FC = () => {
@@ -14,6 +14,9 @@ const Patients: React.FC = () => {
   
   // Edit State
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
+
+  // Dictation State
+  const [listeningField, setListeningField] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<Patient>>({
@@ -109,6 +112,43 @@ const Patients: React.FC = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // --- Voice Dictation Logic ---
+  const startListening = (fieldName: keyof Patient) => {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert("Voice input is not supported in this browser. Try Chrome.");
+      return;
+    }
+    
+    setListeningField(fieldName);
+    const recognition = new (window as any).webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US'; // Can be changed to 'en-IN' if needed
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setFormData(prev => {
+        const currentValue = prev[fieldName] as string || '';
+        // Append if value exists, else set
+        return {
+          ...prev,
+          [fieldName]: currentValue ? `${currentValue} ${transcript}` : transcript
+        };
+      });
+      setListeningField(null);
+    };
+
+    recognition.onerror = () => {
+      setListeningField(null);
+    };
+
+    recognition.onend = () => {
+      setListeningField(null);
+    };
+
+    recognition.start();
   };
 
   return (
@@ -235,7 +275,24 @@ const Patients: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Full Name *</label>
-                  <input required name="name" value={formData.name} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g. Rahul Sharma" />
+                  <div className="relative">
+                    <input 
+                      required 
+                      name="name" 
+                      value={formData.name} 
+                      onChange={handleInputChange} 
+                      className="w-full p-2 pr-10 border rounded-lg" 
+                      placeholder="e.g. Rahul Sharma" 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => startListening('name')}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-600 ${listeningField === 'name' ? 'text-red-500 animate-pulse' : ''}`}
+                      title="Speak to type"
+                    >
+                      <Mic size={16} />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Mobile Number *</label>
@@ -260,18 +317,67 @@ const Patients: React.FC = () => {
                 </div>
                  <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Known Allergies</label>
-                  <input name="allergies" value={formData.allergies} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g. Peanuts, Penicillin" />
+                  <div className="relative">
+                    <input 
+                      name="allergies" 
+                      value={formData.allergies} 
+                      onChange={handleInputChange} 
+                      className="w-full p-2 pr-10 border rounded-lg" 
+                      placeholder="e.g. Peanuts, Penicillin" 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => startListening('allergies')}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-600 ${listeningField === 'allergies' ? 'text-red-500 animate-pulse' : ''}`}
+                      title="Speak to type"
+                    >
+                      <Mic size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
-                <textarea name="address" rows={2} value={formData.address} onChange={handleInputChange} className="w-full p-2 border rounded-lg" />
+                <div className="relative">
+                  <textarea 
+                    name="address" 
+                    rows={2} 
+                    value={formData.address} 
+                    onChange={handleInputChange} 
+                    className="w-full p-2 pr-10 border rounded-lg" 
+                  />
+                  <button 
+                      type="button" 
+                      onClick={() => startListening('address')}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-600 ${listeningField === 'address' ? 'text-red-500 animate-pulse' : ''}`}
+                      title="Speak to type"
+                    >
+                      <Mic size={16} />
+                    </button>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Chronic Conditions / Medical History</label>
-                <textarea name="chronicConditions" rows={2} value={formData.chronicConditions} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g. Diabetes, previous surgeries, heart condition" />
+                <div className="relative">
+                  <textarea 
+                    name="chronicConditions" 
+                    rows={2} 
+                    value={formData.chronicConditions} 
+                    onChange={handleInputChange} 
+                    className="w-full p-2 pr-10 border rounded-lg" 
+                    placeholder="e.g. Diabetes, previous surgeries, heart condition" 
+                  />
+                  <button 
+                      type="button" 
+                      onClick={() => startListening('chronicConditions')}
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-600 ${listeningField === 'chronicConditions' ? 'text-red-500 animate-pulse' : ''}`}
+                      title="Speak to type"
+                    >
+                      <Mic size={16} />
+                    </button>
+                </div>
                 <p className="text-xs text-slate-400 mt-1">Include any significant past medical history here.</p>
               </div>
 

@@ -32,6 +32,8 @@ const PatientDetails: React.FC = () => {
   const [showCertModal, setShowCertModal] = useState(false);
   const [certType, setCertType] = useState<'Sick' | 'Fitness'>('Sick');
   const [certDays, setCertDays] = useState(2);
+  const [certContent, setCertContent] = useState('');
+  const [generatingCert, setGeneratingCert] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -123,6 +125,34 @@ const PatientDetails: React.FC = () => {
     setAiLoading(false);
   };
 
+  // --- Certificate Generation ---
+  const handleAiCertGen = async () => {
+    if (!patient) return;
+    setGeneratingCert(true);
+    const lastDiag = visits[0]?.diagnosis || 'Viral Affection';
+    const duration = certType === 'Sick' ? `${certDays} days` : new Date().toLocaleDateString();
+    
+    const text = await GeminiService.generateCertificateText(
+      certType, 
+      patient.name, 
+      lastDiag, 
+      duration,
+      DOCTOR_NAME
+    );
+    setCertContent(text);
+    setGeneratingCert(false);
+  };
+
+  // Pre-fill certificate text when modal opens
+  useEffect(() => {
+    if (showCertModal && patient) {
+        if (!certContent) {
+           handleAiCertGen();
+        }
+    }
+  }, [showCertModal, certType]);
+
+
   // --- Save Visit ---
   const handleSaveVisit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,7 +226,7 @@ Take care!
           <ArrowLeft size={18} /> Back to Patients
         </button>
         <button 
-          onClick={() => setShowCertModal(true)} 
+          onClick={() => { setShowCertModal(true); setCertContent(''); }} 
           className="bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm"
         >
           <FileCheck size={16} /> Generate Certificate
@@ -519,12 +549,12 @@ Take care!
       {/* Certificate Modal */}
       {showCertModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
               <h3 className="font-bold text-slate-800">Generate Certificate</h3>
               <button onClick={() => setShowCertModal(false)} className="text-slate-400 hover:text-slate-600"><XIcon /></button>
             </div>
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto">
                <div className="flex gap-4 mb-6">
                   <div className={`flex-1 p-4 border rounded-lg cursor-pointer ${certType === 'Sick' ? 'border-teal-500 bg-teal-50' : 'border-slate-200'}`} onClick={() => setCertType('Sick')}>
                     <div className="font-bold text-slate-800">Sick Leave</div>
@@ -537,8 +567,33 @@ Take care!
                </div>
 
                <div className="mb-4">
-                 <label className="block text-sm font-medium text-slate-700 mb-1">Number of Days / Rest Date</label>
-                 <input type="number" value={certDays} onChange={(e) => setCertDays(Number(e.target.value))} className="w-full p-2 border rounded-lg" />
+                 <label className="block text-sm font-medium text-slate-700 mb-1">
+                   {certType === 'Sick' ? 'Number of Days Rest' : 'Resume Date'}
+                 </label>
+                 {certType === 'Sick' ? (
+                    <input type="number" value={certDays} onChange={(e) => setCertDays(Number(e.target.value))} className="w-full p-2 border rounded-lg" />
+                 ) : (
+                    <input type="date" value={new Date().toISOString().split('T')[0]} disabled className="w-full p-2 border rounded-lg bg-slate-100" />
+                 )}
+               </div>
+
+               <div className="mb-4">
+                 <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-slate-700">Certificate Content</label>
+                    <button 
+                      onClick={handleAiCertGen} 
+                      disabled={generatingCert}
+                      className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-md flex items-center gap-1 hover:bg-purple-200"
+                    >
+                      <Sparkles size={12} /> {generatingCert ? 'Writing...' : 'Rewrite with AI'}
+                    </button>
+                 </div>
+                 <textarea 
+                    value={certContent}
+                    onChange={(e) => setCertContent(e.target.value)}
+                    rows={6}
+                    className="w-full p-3 border border-slate-300 rounded-lg text-sm leading-relaxed font-serif"
+                 />
                </div>
 
                <button onClick={printCertificate} className="w-full py-3 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-900 flex items-center justify-center gap-2">
@@ -549,46 +604,61 @@ Take care!
         </div>
       )}
 
-      {/* Print Only Section for Certificate */}
-      <div className="hidden print:block fixed inset-0 bg-white z-[100] p-12 text-black">
-        <div className="border-2 border-black p-8 h-full relative">
-          <div className="text-center border-b-2 border-black pb-4 mb-8">
-            <h1 className="text-4xl font-serif font-bold mb-2">{CLINIC_NAME}</h1>
-            <h2 className="text-xl font-bold">{DOCTOR_NAME}</h2>
-            <p className="text-sm">{DOCTOR_DEGREE} | Reg. No: 123456</p>
-            <p className="text-sm mt-1">Mobile: {patient.mobile}</p>
+      {/* Professional Print View - Letterhead Style */}
+      <div className="hidden print:block fixed inset-0 bg-white z-[100] p-16 text-black">
+        <div className="h-full flex flex-col font-serif">
+          
+          {/* Letterhead Header */}
+          <div className="border-b-2 border-slate-800 pb-4 mb-8 text-center">
+             <h1 className="text-4xl font-bold mb-2 uppercase tracking-wide text-slate-900">{CLINIC_NAME}</h1>
+             <div className="flex justify-between items-end px-4 mt-4">
+               <div className="text-left">
+                 <h2 className="text-xl font-bold">{DOCTOR_NAME}</h2>
+                 <p className="text-sm text-slate-600">{DOCTOR_DEGREE}</p>
+                 <p className="text-xs text-slate-500">Reg No: 20562/MH</p>
+               </div>
+               <div className="text-right text-sm">
+                 <p>Opp. Manpasand Mithaiwala,</p>
+                 <p>Bapgaon Naka, Bhiwandi,</p>
+                 <p>Thane 421302</p>
+                 <p className="font-bold mt-1">Mo: {patient.mobile}</p>
+               </div>
+             </div>
           </div>
 
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold underline uppercase tracking-widest">Medical Certificate</h2>
+          {/* Meta Data */}
+          <div className="flex justify-between mb-8 px-4 font-bold text-sm">
+            <p>Ref No: {new Date().getFullYear()}/{Math.floor(Math.random() * 1000)}</p>
+            <p>Date: {new Date().toLocaleDateString()}</p>
           </div>
 
-          <div className="text-lg leading-loose font-serif">
-            <p className="mb-4">
-              This is to certify that <strong>{patient.name}</strong>, aged <strong>{patient.age}</strong>, 
-              is under my homeopathic treatment for <strong>{visits[0]?.diagnosis || 'Viral Affection'}</strong>.
-            </p>
-            
-            {certType === 'Sick' ? (
-              <p>
-                He/She is advised rest for <strong>{certDays} days</strong> w.e.f <strong>{new Date().toLocaleDateString()}</strong>.
-              </p>
-            ) : (
-              <p>
-                He/She has recovered from illness and is fit to resume duties from <strong>{new Date().toLocaleDateString()}</strong>.
-              </p>
-            )}
+          {/* Title */}
+          <div className="text-center mb-12">
+            <h2 className="text-2xl font-bold underline uppercase tracking-widest decoration-2 underline-offset-4">
+              Medical {certType} Certificate
+            </h2>
           </div>
 
-          <div className="absolute bottom-16 right-16 text-center">
-             <p className="mb-8">__________________</p>
-             <p className="font-bold">{DOCTOR_NAME}</p>
-             <p className="text-sm">Signature</p>
+          {/* Body */}
+          <div className="text-lg leading-loose px-8 flex-1 text-justify">
+             {certContent ? (
+               <p style={{ whiteSpace: 'pre-wrap' }}>{certContent}</p>
+             ) : (
+               <p>Content is being generated...</p>
+             )}
           </div>
 
-           <div className="absolute bottom-4 left-8 text-xs text-slate-500">
-             Generated on {new Date().toLocaleDateString()}
+          {/* Footer */}
+          <div className="mt-auto px-8 pb-8 flex justify-end">
+            <div className="text-center w-64">
+               <div className="h-16"></div> {/* Space for signature */}
+               <div className="border-t border-slate-800 pt-2">
+                 <p className="font-bold text-lg">{DOCTOR_NAME}</p>
+                 <p className="text-sm uppercase tracking-wider text-slate-600">Homeopathic Physician</p>
+               </div>
+            </div>
           </div>
+          
         </div>
       </div>
 

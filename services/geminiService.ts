@@ -42,5 +42,40 @@ export const GeminiService = {
     } catch (error) {
        return rawNotes;
     }
+  },
+
+  async generateCertificateText(
+    type: 'Sick' | 'Fitness', 
+    patientName: string, 
+    diagnosis: string, 
+    daysOrDate: string,
+    doctorName: string
+  ): Promise<string> {
+    try {
+      const prompt = `
+        Write the body text for a formal medical certificate.
+        Type: ${type} Certificate.
+        Doctor: ${doctorName} (Homeopath).
+        Patient: ${patientName}.
+        Diagnosis/Condition: ${diagnosis}.
+        Duration/Date: ${daysOrDate}.
+
+        Requirements:
+        - Use professional, medico-legal language.
+        - Do not include the header or footer (date, signature), just the body paragraphs.
+        - If 'Sick', state that the patient is suffering from the condition and needs rest for the specified days from today.
+        - If 'Fitness', state that the patient was suffering from the condition but is now fit to resume duties from ${daysOrDate}.
+        - Keep it concise (approx 50-80 words).
+      `;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+      });
+      return response.text || "";
+    } catch (error) {
+      console.error("Certificate Gen Error", error);
+      return "";
+    }
   }
 };
